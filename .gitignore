@@ -1,0 +1,6 @@
+.buildozer/
+.python-version
+*.pyc
+__pycache__/
+business_manager.db
+build.log
