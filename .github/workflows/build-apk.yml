@@ -41,15 +41,22 @@ jobs:
             libncursesw5-dev \
             cmake
 
+      - name: Install Android SDK
+        run: |
+          yes | ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager --licenses || true
+          ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager \
+            "platform-tools" \
+            "platforms;android-33" \
+            "build-tools;35.0.0"
+
       - name: Install Buildozer
         run: |
           python -m pip install --upgrade pip
           python -m pip install buildozer cython
 
-      - name: Clean old Android build
+      - name: Clean Buildozer build files
         run: |
           rm -rf .buildozer
-          rm -rf ~/.buildozer
 
       - name: Build APK
         run: |
