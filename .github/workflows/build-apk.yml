@@ -29,6 +29,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
+
           sudo apt-get install -y \
             git \
             zip \
@@ -57,6 +58,11 @@ jobs:
       - name: Build APK
         run: |
           buildozer android debug
+
+      - name: Check APK
+        run: |
+          echo "APK files:"
+          ls -lh bin/*.apk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
