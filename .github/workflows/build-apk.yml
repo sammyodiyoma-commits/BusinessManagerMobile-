@@ -12,7 +12,7 @@ jobs:
 
     steps:
 
-      - name: Checkout
+      - name: Checkout project
         uses: actions/checkout@v4
 
       - name: Set up Python
@@ -26,7 +26,7 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Install dependencies
+      - name: Install system dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -43,41 +43,13 @@ jobs:
             cmake \
             libffi-dev
 
-      - name: Install Android SDK
-        run: |
-          SDK="$HOME/.buildozer/android/platform/android-sdk"
-
-          mkdir -p "$SDK"
-
-          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
-            --sdk_root="$SDK" \
-            "platform-tools" \
-            "platforms;android-33" \
-            "build-tools;34.0.0"
-
-          echo "ANDROIDSDK=$SDK" >> "$GITHUB_ENV"
-          echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
-          echo "ANDROIDAPI=33" >> "$GITHUB_ENV"
-          echo "ANDROIDMINAPI=24" >> "$GITHUB_ENV"
-
       - name: Install Buildozer
         run: |
           python -m pip install --upgrade pip
           python -m pip install buildozer
           python -m pip install "Cython==0.29.36"
 
-      - name: Check SDK
-        run: |
-          echo "ANDROIDSDK=$ANDROIDSDK"
-          echo "ANDROID_HOME=$ANDROID_HOME"
-
-          ls -la "$ANDROIDSDK"
-          ls -la "$ANDROIDSDK/build-tools"
-          ls -la "$ANDROIDSDK/build-tools/34.0.0"
-
-          "$ANDROIDSDK/build-tools/34.0.0/aidl" --version
-
-      - name: Clean Buildozer
+      - name: Clean old build files
         run: |
           rm -rf .buildozer
           rm -rf bin
