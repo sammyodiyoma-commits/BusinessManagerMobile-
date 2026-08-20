@@ -70,14 +70,29 @@ jobs:
           ln -s "$ANDROID_HOME" \
             "$HOME/.buildozer/android/platform/android-sdk"
 
-          echo "Buildozer Android SDK:"
-          ls -la "$HOME/.buildozer/android/platform/android-sdk"
+          SDK="$HOME/.buildozer/android/platform/android-sdk"
 
-          echo "Installed Build Tools:"
-          ls -la "$ANDROID_HOME/build-tools"
+          echo "Creating compatibility sdkmanager path..."
 
-          echo "Checking AIDL:"
-          find "$ANDROID_HOME/build-tools" -name aidl -type f
+          SDKMANAGER=$(find "$SDK" -name sdkmanager -type f 2>/dev/null | head -n 1)
+
+          if [ -z "$SDKMANAGER" ]; then
+            echo "ERROR: sdkmanager was not found inside Android SDK"
+            exit 1
+          fi
+
+          mkdir -p "$SDK/tools/bin"
+
+          ln -sf "$SDKMANAGER" "$SDK/tools/bin/sdkmanager"
+
+          echo "Buildozer sdkmanager:"
+          ls -l "$SDK/tools/bin/sdkmanager"
+
+          echo "Build Tools:"
+          ls -la "$SDK/build-tools"
+
+          echo "AIDL:"
+          find "$SDK/build-tools" -name aidl -type f
 
       - name: Build APK
         run: |
