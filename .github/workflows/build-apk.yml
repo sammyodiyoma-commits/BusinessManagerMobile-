@@ -11,6 +11,7 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
+
       - name: Checkout project
         uses: actions/checkout@v4
 
@@ -46,10 +47,28 @@ jobs:
           echo "8933bad161af4178b1185d1a37fbf41ea5269c55" > "$ANDROID_HOME/licenses/android-sdk-license"
           echo "d56f5187479451eabf01fb78af6dfcb131a6481e7" >> "$ANDROID_HOME/licenses/android-sdk-license"
           echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" >> "$ANDROID_HOME/licenses/android-sdk-license"
+
+      - name: Find Android SDK
+        run: |
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+          find "$ANDROID_HOME" -name sdkmanager -type f 2>/dev/null || true
+
       - name: Install Android SDK Build Tools
         run: |
-          sdkmanager "build-tools;37.0.0" "platform-tools"
-          
+          SDKMANAGER=$(find "$ANDROID_HOME" -name sdkmanager -type f 2>/dev/null | head -n 1)
+
+          if [ -z "$SDKMANAGER" ]; then
+            echo "ERROR: sdkmanager was not found."
+            exit 1
+          fi
+
+          echo "Using sdkmanager: $SDKMANAGER"
+
+          yes | "$SDKMANAGER" --licenses || true
+
+          "$SDKMANAGER" "platform-tools" "build-tools;37.0.0"
+
       - name: Show Android environment
         run: |
           echo "ANDROID_HOME=$ANDROID_HOME"
