@@ -20,6 +20,17 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: Check Java
+        run: |
+          java -version
+          echo "JAVA_HOME=$JAVA_HOME"
+
       - name: Install system dependencies
         run: |
           sudo apt-get update
@@ -28,7 +39,6 @@ jobs:
             zip \
             unzip \
             wget \
-            openjdk-17-jdk \
             autoconf \
             automake \
             libtool \
@@ -66,12 +76,12 @@ jobs:
 
           echo "Android command-line tools installed."
 
-          ls -la "$SDK/cmdline-tools/latest/bin"
-
       - name: Install Android SDK packages
         run: |
           SDK="$HOME/.buildozer/android/platform/android-sdk"
           SDKMANAGER="$SDK/cmdline-tools/latest/bin/sdkmanager"
+
+          java -version
 
           yes | "$SDKMANAGER" --sdk_root="$SDK" --licenses || true
 
