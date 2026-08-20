@@ -12,39 +12,23 @@ jobs:
 
     steps:
 
-      # ==========================================
-      # 1. Checkout
-      # ==========================================
-      - name: Checkout project
+      - name: Checkout
         uses: actions/checkout@v4
 
-
-      # ==========================================
-      # 2. Python
-      # ==========================================
-      - name: Set up Python
+      - name: Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-
-      # ==========================================
-      # 3. Java
-      # ==========================================
-      - name: Set up Java 17
+      - name: Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
 
-
-      # ==========================================
-      # 4. Linux dependencies
-      # ==========================================
-      - name: Install system dependencies
+      - name: Install dependencies
         run: |
           sudo apt-get update
-
           sudo apt-get install -y \
             git \
             zip \
@@ -61,48 +45,18 @@ jobs:
             libffi-dev \
             libssl-dev
 
-
-      # ==========================================
-      # 5. Buildozer
-      # ==========================================
       - name: Install Buildozer
         run: |
           python -m pip install --upgrade pip setuptools wheel
-
           python -m pip install "Cython==0.29.36"
-
           python -m pip install buildozer
 
-
-      # ==========================================
-      # 6. Clean old Buildozer files
-      # ==========================================
-      - name: Clean old Buildozer files
+      - name: Clean
         run: |
           rm -rf .buildozer
           rm -rf bin
 
-          mkdir -p "$HOME/.buildozer/android/platform"
-
-
-      # ==========================================
-      # 7. Fix charset-normalizer
-      # ==========================================
-      - name: Fix charset-normalizer
-        run: |
-          if [ -f requirements.txt ]; then
-            sed -i '/charset[-_]normalizer/d' requirements.txt
-            echo "charset-normalizer==2.1.1" >> requirements.txt
-          fi
-
-          echo "requirements.txt:"
-          cat requirements.txt 2>/dev/null || true
-
-
-      # ==========================================
-      # 8. Install Android Command Line Tools
-      # ==========================================
-      - name: Install Android Command Line Tools
+      - name: Install Android SDK
         run: |
           SDK="$HOME/.buildozer/android/platform/android-sdk"
 
@@ -115,154 +69,80 @@ jobs:
             -O commandlinetools.zip
 
           rm -rf cmdline-tools
-
           mkdir cmdline-tools
 
           unzip -q commandlinetools.zip -d cmdline-tools
 
           rm -rf "$SDK/cmdline-tools/latest"
 
-          mv \
-            cmdline-tools/cmdline-tools \
-            "$SDK/cmdline-tools/latest"
+          mv cmdline-tools/cmdline-tools "$SDK/cmdline-tools/latest"
 
           chmod +x "$SDK/cmdline-tools/latest/bin/"*
 
-          echo "Command line tools installed."
-
-          "$SDK/cmdline-tools/latest/bin/sdkmanager" --version
-
-
-      # ==========================================
-      # 9. Accept Android licenses
-      # ==========================================
-      - name: Accept Android SDK licenses
-        run: |
-          SDK="$HOME/.buildozer/android/platform/android-sdk"
           SDKMANAGER="$SDK/cmdline-tools/latest/bin/sdkmanager"
 
           yes | "$SDKMANAGER" \
             --sdk_root="$SDK" \
             --licenses || true
 
-
-      # ==========================================
-      # 10. Install Android SDK packages
-      # ==========================================
-      - name: Install Android SDK packages
-        run: |
-          SDK="$HOME/.buildozer/android/platform/android-sdk"
-          SDKMANAGER="$SDK/cmdline-tools/latest/bin/sdkmanager"
-
           "$SDKMANAGER" \
             --sdk_root="$SDK" \
             "platform-tools" \
             "platforms;android-33" \
-            "build-tools;37.0.0"
+            "build-tools;35.0.0"
 
-          echo "===================================="
-          echo "Installed Build Tools:"
-          echo "===================================="
+          echo "===== SDK CONTENTS ====="
+          find "$SDK" -maxdepth 3 -type f | head -100
 
-          ls -la "$SDK/build-tools"
+          echo "===== AIDL ====="
+          ls -la "$SDK/build-tools/35.0.0/"
+          "$SDK/build-tools/35.0.0/aidl" --version
 
-          echo "===================================="
-          echo "Checking AIDL:"
-          echo "===================================="
-
-          "$SDK/build-tools/37.0.0/aidl" --version
-
-
-      # ==========================================
-      # 11. Create old Buildozer sdkmanager path
-      # ==========================================
-      - name: Create Buildozer SDK compatibility path
+      - name: Create Buildozer SDK links
         run: |
           SDK="$HOME/.buildozer/android/platform/android-sdk"
 
           mkdir -p "$SDK/tools/bin"
 
-          ln -sf \
-            "$SDK/cmdline-tools/latest/bin/sdkmanager" \
+          ln -sf "$SDK/cmdline-tools/latest/bin/sdkmanager" \
             "$SDK/tools/bin/sdkmanager"
 
-          ln -sf \
-            "$SDK/cmdline-tools/latest/bin/avdmanager" \
+          ln -sf "$SDK/cmdline-tools/latest/bin/avdmanager" \
             "$SDK/tools/bin/avdmanager"
 
-          echo "===================================="
-          echo "Buildozer sdkmanager:"
-          echo "===================================="
+          echo "===== BUILDOZER SDK ====="
+          ls -la "$SDK"
 
-          ls -l "$SDK/tools/bin/sdkmanager"
+          echo "===== BUILD TOOLS ====="
+          ls -la "$SDK/build-tools"
 
-          echo "===================================="
-          echo "Build Tools:"
-          echo "===================================="
+          echo "===== AIDL ====="
+          test -f "$SDK/build-tools/35.0.0/aidl"
 
-          ls -la "$SDK/build-tools/37.0.0"
-
-          echo "===================================="
-          echo "AIDL:"
-          echo "===================================="
-
-          "$SDK/build-tools/37.0.0/aidl" --version
-
-
-      # ==========================================
-      # 12. Set Android environment
-      # ==========================================
-      - name: Set Android environment
+      - name: Fix requirements
         run: |
-          SDK="$HOME/.buildozer/android/platform/android-sdk"
+          if [ -f requirements.txt ]; then
+            sed -i '/^charset-normalizer/d' requirements.txt
+            sed -i '/^charset_normalizer/d' requirements.txt
+          fi
 
-          echo "ANDROIDSDK=$SDK" >> "$GITHUB_ENV"
-          echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
-          echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
-
-          echo "$SDK/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
-          echo "$SDK/tools/bin" >> "$GITHUB_PATH"
-
-
-      # ==========================================
-      # 13. Build APK
-      # ==========================================
       - name: Build APK
         run: |
+          export ANDROIDSDK="$HOME/.buildozer/android/platform/android-sdk"
+          export ANDROID_HOME="$ANDROIDSDK"
+          export ANDROID_SDK_ROOT="$ANDROIDSDK"
+
           echo "ANDROIDSDK=$ANDROIDSDK"
           echo "ANDROID_HOME=$ANDROID_HOME"
           echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
 
-          echo "Checking SDK:"
-          ls -la "$ANDROIDSDK"
-
-          echo "Checking Build Tools:"
-          ls -la "$ANDROIDSDK/build-tools"
-
-          echo "Checking AIDL:"
-          "$ANDROIDSDK/build-tools/37.0.0/aidl" --version
-
           buildozer -v android debug
 
-
-      # ==========================================
-      # 14. Find APK
-      # ==========================================
-      - name: Show APK files
+      - name: Find APK
         run: |
-          echo "===================================="
-          echo "APK FILES"
-          echo "===================================="
+          echo "===== APK FILES ====="
+          find . -type f -name "*.apk" -print
 
-          find bin \
-            -type f \
-            -name "*.apk" \
-            -print
-
-
-      # ==========================================
-      # 15. Upload APK
-      # ==========================================
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
