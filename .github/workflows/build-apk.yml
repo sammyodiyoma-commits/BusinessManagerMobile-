@@ -15,20 +15,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Python 3.11
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
-      - name: Java 17
+      - name: Set up Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
 
-      - name: Install dependencies
+      - name: Install system packages
         run: |
           sudo apt-get update
+
           sudo apt-get install -y \
             git \
             zip \
@@ -48,102 +49,50 @@ jobs:
       - name: Install Buildozer
         run: |
           python -m pip install --upgrade pip setuptools wheel
-          python -m pip install "Cython==0.29.36"
-          python -m pip install buildozer
 
-      - name: Clean
+          python -m pip install \
+            "Cython==0.29.36"
+
+          python -m pip install \
+            "buildozer==1.5.0"
+
+      - name: Clean previous build
         run: |
           rm -rf .buildozer
           rm -rf bin
 
-      - name: Install Android SDK
-        run: |
-          SDK="$HOME/.buildozer/android/platform/android-sdk"
-
-          mkdir -p "$SDK/cmdline-tools"
-
-          cd /tmp
-
-          wget -q \
-            "https://dl.google.com/android/repository/commandlinetools-linux-13114758_latest.zip" \
-            -O commandlinetools.zip
-
-          rm -rf cmdline-tools
-          mkdir cmdline-tools
-
-          unzip -q commandlinetools.zip -d cmdline-tools
-
-          rm -rf "$SDK/cmdline-tools/latest"
-
-          mv cmdline-tools/cmdline-tools "$SDK/cmdline-tools/latest"
-
-          chmod +x "$SDK/cmdline-tools/latest/bin/"*
-
-          SDKMANAGER="$SDK/cmdline-tools/latest/bin/sdkmanager"
-
-          yes | "$SDKMANAGER" \
-            --sdk_root="$SDK" \
-            --licenses || true
-
-          "$SDKMANAGER" \
-            --sdk_root="$SDK" \
-            "platform-tools" \
-            "platforms;android-33" \
-            "build-tools;35.0.0"
-
-          echo "===== SDK CONTENTS ====="
-          find "$SDK" -maxdepth 3 -type f | head -100
-
-          echo "===== AIDL ====="
-          ls -la "$SDK/build-tools/35.0.0/"
-          "$SDK/build-tools/35.0.0/aidl" --version
-
-      - name: Create Buildozer SDK links
-        run: |
-          SDK="$HOME/.buildozer/android/platform/android-sdk"
-
-          mkdir -p "$SDK/tools/bin"
-
-          ln -sf "$SDK/cmdline-tools/latest/bin/sdkmanager" \
-            "$SDK/tools/bin/sdkmanager"
-
-          ln -sf "$SDK/cmdline-tools/latest/bin/avdmanager" \
-            "$SDK/tools/bin/avdmanager"
-
-          echo "===== BUILDOZER SDK ====="
-          ls -la "$SDK"
-
-          echo "===== BUILD TOOLS ====="
-          ls -la "$SDK/build-tools"
-
-          echo "===== AIDL ====="
-          test -f "$SDK/build-tools/35.0.0/aidl"
-
-      - name: Fix requirements
+      - name: Prepare requirements
         run: |
           if [ -f requirements.txt ]; then
-            sed -i '/^charset-normalizer/d' requirements.txt
-            sed -i '/^charset_normalizer/d' requirements.txt
+            sed -i '/^[[:space:]]*charset[-_]normalizer[[:space:]]*/Id' requirements.txt
           fi
 
-      - name: Build APK
+          echo "===== requirements.txt ====="
+
+          if [ -f requirements.txt ]; then
+            cat requirements.txt
+          else
+            echo "No requirements.txt found"
+          fi
+
+      - name: Build Android APK
+        env:
+          ACCEPT_EULA: "Y"
         run: |
-          export ANDROIDSDK="$HOME/.buildozer/android/platform/android-sdk"
-          export ANDROID_HOME="$ANDROIDSDK"
-          export ANDROID_SDK_ROOT="$ANDROIDSDK"
-
-          echo "ANDROIDSDK=$ANDROIDSDK"
-          echo "ANDROID_HOME=$ANDROID_HOME"
-          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
-
           buildozer -v android debug
 
       - name: Find APK
+        if: success()
         run: |
           echo "===== APK FILES ====="
-          find . -type f -name "*.apk" -print
+
+          find . \
+            -type f \
+            -name "*.apk" \
+            -print
 
       - name: Upload APK
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: BusinessManager-APK
