@@ -15,7 +15,7 @@ jobs:
       - name: Checkout project
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -26,8 +26,10 @@ jobs:
           distribution: "temurin"
           java-version: "17"
 
-      - name: Check Java
+      - name: Check Python and Java
         run: |
+          python --version
+          python3 --version
           java -version
           echo "JAVA_HOME=$JAVA_HOME"
 
@@ -44,19 +46,19 @@ jobs:
             libtool \
             pkg-config \
             libffi-dev \
-            libssl-dev
+            libssl-dev \
+            libltdl-dev
 
       - name: Install Buildozer
         run: |
           python -m pip install --upgrade pip setuptools wheel
-          pip install "cython<3" buildozer
+          python -m pip install "cython<3" buildozer
 
       - name: Install Android Command Line Tools
         run: |
           SDK="$HOME/.buildozer/android/platform/android-sdk"
 
           mkdir -p "$SDK"
-
           cd /tmp
 
           wget -q https://dl.google.com/android/repository/commandlinetools-linux-13114758_latest.zip
@@ -76,17 +78,25 @@ jobs:
 
           echo "Android command-line tools installed."
 
+      - name: Set Android environment
+        run: |
+          SDK="$HOME/.buildozer/android/platform/android-sdk"
+
+          echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
+          echo "$SDK/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
+          echo "$SDK/platform-tools" >> "$GITHUB_PATH"
+
       - name: Install Android SDK packages
         run: |
           SDK="$HOME/.buildozer/android/platform/android-sdk"
           SDKMANAGER="$SDK/cmdline-tools/latest/bin/sdkmanager"
 
-          java -version
-
           yes | "$SDKMANAGER" --sdk_root="$SDK" --licenses || true
 
           "$SDKMANAGER" --sdk_root="$SDK" \
             "platform-tools" \
+            "platforms;android-35" \
             "build-tools;35.0.0"
 
       - name: Create Buildozer sdkmanager compatibility path
@@ -99,15 +109,34 @@ jobs:
             "$SDK/cmdline-tools/latest/bin/sdkmanager" \
             "$SDK/tools/bin/sdkmanager"
 
-          echo "Buildozer sdkmanager:"
+          echo "Checking sdkmanager:"
           ls -l "$SDK/tools/bin/sdkmanager"
 
-          echo "AIDL:"
+          echo "Checking AIDL:"
           find "$SDK/build-tools" -name aidl -type f
 
+      - name: Remove old Buildozer cache
+        run: |
+          rm -rf .buildozer
+          rm -rf ~/.buildozer/android/platform/build-*
+
+      - name: Check Buildozer configuration
+        run: |
+          buildozer --version
+          test -f buildozer.spec
+          echo "buildozer.spec found."
+
       - name: Build APK
+        env:
+          PIP_DISABLE_PIP_VERSION_CHECK: "1"
+          PIP_NO_CACHE_DIR: "1"
         run: |
           buildozer android debug
+
+      - name: List generated APK
+        run: |
+          echo "Generated files:"
+          find bin -type f -maxdepth 1 -print
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
