@@ -19,6 +19,12 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
       - name: Install system dependencies
         run: |
           sudo apt-get update
@@ -26,7 +32,6 @@ jobs:
             git \
             zip \
             unzip \
-            openjdk-17-jdk \
             autoconf \
             automake \
             libtool \
@@ -34,7 +39,6 @@ jobs:
             zlib1g-dev \
             libncurses5-dev \
             libncursesw5-dev \
-            libtinfo5 \
             cmake
 
       - name: Install Buildozer
@@ -42,7 +46,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install buildozer cython
 
-      - name: Clean Buildozer cache
+      - name: Clean old Android build
         run: |
           rm -rf .buildozer
           rm -rf ~/.buildozer
