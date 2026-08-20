@@ -40,12 +40,24 @@ jobs:
           python -m pip install --upgrade pip setuptools wheel
           pip install "cython<3" buildozer
 
-      - name: Configure Buildozer
+      - name: Prepare Android SDK for Buildozer
         run: |
-          mkdir -p "$HOME/.buildozer"
+          SDK="$HOME/.buildozer/android/platform/android-sdk"
 
-          echo "Buildozer version:"
-          buildozer --version
+          mkdir -p "$SDK"
+
+          echo "SDK location:"
+          echo "$SDK"
+
+          if command -v sdkmanager >/dev/null 2>&1; then
+            echo "System sdkmanager found"
+            sdkmanager --sdk_root="$SDK" \
+              "platform-tools" \
+              "build-tools;35.0.0"
+          else
+            echo "System sdkmanager not found"
+            echo "Buildozer will download the Android SDK components"
+          fi
 
       - name: Build APK
         run: |
