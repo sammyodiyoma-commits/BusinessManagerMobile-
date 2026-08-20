@@ -25,7 +25,7 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Install system dependencies
+      - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -39,25 +39,31 @@ jobs:
             zlib1g-dev \
             libncurses5-dev \
             libncursesw5-dev \
+            libtinfo5 \
             cmake \
-            libffi-dev
+            libffi-dev \
+            libssl-dev
 
       - name: Install Android SDK
         run: |
           SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
 
-          echo "Accepting Android licenses..."
           yes | "$SDKMANAGER" --licenses || true
 
-          echo "Installing Android SDK..."
           "$SDKMANAGER" \
             "platform-tools" \
             "platforms;android-33" \
             "build-tools;35.0.0"
 
-          echo "Checking AIDL..."
+          echo "Installed Build Tools:"
           ls -la "$ANDROID_HOME/build-tools/35.0.0"
-          "$ANDROID_HOME/build-tools/35.0.0/aidl" --version
+
+      - name: Test AIDL
+        run: |
+          "$ANDROID_HOME/build-tools/35.0.0/aidl" || true
+
+          echo "AIDL exists:"
+          test -f "$ANDROID_HOME/build-tools/35.0.0/aidl"
 
       - name: Install Buildozer
         run: |
@@ -65,26 +71,14 @@ jobs:
           python -m pip install buildozer
           python -m pip install "Cython==0.29.36"
 
-      - name: Clean Buildozer
+      - name: Clean Build
         run: |
           rm -rf .buildozer
           rm -rf bin
 
-      - name: Configure Buildozer SDK
-        run: |
-          mkdir -p "$HOME/.buildozer/android/platform"
-
-          ln -s "$ANDROID_HOME" \
-            "$HOME/.buildozer/android/platform/android-sdk"
-
-          echo "ANDROID_HOME=$ANDROID_HOME"
-          echo "Checking SDK..."
-          ls -la "$ANDROID_HOME"
-          ls -la "$ANDROID_HOME/build-tools"
-          ls -la "$ANDROID_HOME/build-tools/35.0.0"
-
       - name: Build APK
         env:
+          ANDROIDSDK: ${{ env.ANDROID_HOME }}
           ANDROID_HOME: ${{ env.ANDROID_HOME }}
           ANDROID_SDK_ROOT: ${{ env.ANDROID_HOME }}
         run: |
