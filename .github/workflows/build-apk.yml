@@ -40,59 +40,12 @@ jobs:
           python -m pip install --upgrade pip setuptools wheel
           pip install "cython<3" buildozer
 
-      - name: Configure Android SDK
+      - name: Configure Buildozer
         run: |
-          echo "ANDROID_HOME=$ANDROID_HOME"
-          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+          mkdir -p "$HOME/.buildozer"
 
-          SDKMANAGER=$(find "$ANDROID_HOME" -name sdkmanager -type f 2>/dev/null | head -n 1)
-
-          if [ -z "$SDKMANAGER" ]; then
-            echo "ERROR: sdkmanager was not found"
-            exit 1
-          fi
-
-          echo "Using sdkmanager: $SDKMANAGER"
-
-          yes | "$SDKMANAGER" --licenses || true
-
-          "$SDKMANAGER" "platform-tools" "build-tools;37.0.0"
-
-          echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
-          echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> "$GITHUB_ENV"
-
-      - name: Connect Buildozer to Android SDK
-        run: |
-          mkdir -p "$HOME/.buildozer/android/platform"
-
-          rm -rf "$HOME/.buildozer/android/platform/android-sdk"
-
-          ln -s "$ANDROID_HOME" \
-            "$HOME/.buildozer/android/platform/android-sdk"
-
-          SDK="$HOME/.buildozer/android/platform/android-sdk"
-
-          echo "Creating compatibility sdkmanager path..."
-
-          SDKMANAGER=$(find "$SDK" -name sdkmanager -type f 2>/dev/null | head -n 1)
-
-          if [ -z "$SDKMANAGER" ]; then
-            echo "ERROR: sdkmanager was not found inside Android SDK"
-            exit 1
-          fi
-
-          mkdir -p "$SDK/tools/bin"
-
-          ln -sf "$SDKMANAGER" "$SDK/tools/bin/sdkmanager"
-
-          echo "Buildozer sdkmanager:"
-          ls -l "$SDK/tools/bin/sdkmanager"
-
-          echo "Build Tools:"
-          ls -la "$SDK/build-tools"
-
-          echo "AIDL:"
-          find "$SDK/build-tools" -name aidl -type f
+          echo "Buildozer version:"
+          buildozer --version
 
       - name: Build APK
         run: |
