@@ -11,7 +11,6 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-
       - name: Checkout project
         uses: actions/checkout@v4
 
@@ -51,12 +50,27 @@ jobs:
           python -m pip install "Cython==0.29.36"
           python -m pip install buildozer
 
-      # IMPORTANT:
-      # Clean BEFORE installing the Android SDK.
       - name: Clean old Buildozer files
         run: |
           rm -rf .buildozer
           rm -rf bin
+
+      - name: Fix requirements
+        run: |
+          if [ -f requirements.txt ]; then
+            echo "Found requirements.txt"
+            cat requirements.txt
+
+            sed -i '/charset_normalizer.*\.whl/d' requirements.txt
+            sed -i '/charset-normalizer/d' requirements.txt
+
+            echo "charset-normalizer==2.1.1" >> requirements.txt
+
+            echo "Fixed requirements.txt:"
+            cat requirements.txt
+          else
+            echo "No requirements.txt found"
+          fi
 
       - name: Install Android Command Line Tools
         run: |
@@ -67,7 +81,7 @@ jobs:
           cd /tmp
 
           wget -q \
-            https://dl.google.com/android/repository/commandlinetools-linux-13114758_latest.zip \
+            "https://dl.google.com/android/repository/commandlinetools-linux-13114758_latest.zip" \
             -O commandlinetools.zip
 
           rm -rf /tmp/cmdline-tools
@@ -87,8 +101,6 @@ jobs:
           SDKMANAGER="$SDK/cmdline-tools/latest/bin/sdkmanager"
 
           echo "SDK: $SDK"
-          echo "SDK Manager: $SDKMANAGER"
-
           "$SDKMANAGER" --version
 
           yes | "$SDKMANAGER" \
@@ -115,20 +127,16 @@ jobs:
             "$SDK/cmdline-tools/latest/bin/avdmanager" \
             "$SDK/tools/bin/avdmanager"
 
-          echo "Checking compatibility path:"
-          ls -la "$SDK/tools/bin"
+          echo "Checking SDK:"
+          ls -la "$SDK"
 
           echo "Checking Build Tools:"
-          ls -la "$SDK/build-tools/35.0.0"
+          ls -la "$SDK/build-tools"
 
           echo "Checking AIDL:"
-          "$SDK/build-tools/35.0.0/aidl" --version || true
+          "$SDK/build-tools/35.0.0/aidl" --version
 
       - name: Build APK
-        env:
-          ANDROIDSDK: ${{ env.ANDROIDSDK }}
-          ANDROID_HOME: ${{ env.ANDROID_HOME }}
-          ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
         run: |
           export ANDROIDSDK="$HOME/.buildozer/android/platform/android-sdk"
           export ANDROID_HOME="$ANDROIDSDK"
