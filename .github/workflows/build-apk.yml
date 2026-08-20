@@ -29,7 +29,6 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
-
           sudo apt-get install -y \
             git \
             zip \
@@ -44,38 +43,22 @@ jobs:
             cmake \
             libffi-dev
 
-      - name: Accept Android SDK licenses
-        run: |
-          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses || true
-
-      - name: Install Android SDK packages
-        run: |
-          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
-            "platform-tools" \
-            "platforms;android-35" \
-            "build-tools;37.0.0"
-
       - name: Install Buildozer
         run: |
           python -m pip install --upgrade pip
           python -m pip install buildozer
           python -m pip install "Cython==0.29.36"
 
-      - name: Verify Android Build Tools
-        run: |
-          echo "Android SDK:"
-          echo "$ANDROID_HOME"
-
-          echo "Build Tools:"
-          ls -la "$ANDROID_HOME/build-tools"
-
-          echo "AIDL:"
-          "$ANDROID_HOME/build-tools/37.0.0/aidl" --version
-
-      - name: Clean Buildozer
+      - name: Clean previous build
         run: |
           rm -rf .buildozer
           rm -rf bin
+
+      - name: Accept Android licenses
+        run: |
+          mkdir -p "$HOME/.buildozer/android/platform/android-sdk/licenses"
+
+          yes | buildozer android debug 2>&1 | head -100 || true
 
       - name: Build APK
         run: |
