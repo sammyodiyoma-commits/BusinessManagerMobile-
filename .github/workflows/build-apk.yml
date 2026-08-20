@@ -12,23 +12,39 @@ jobs:
 
     steps:
 
+      # --------------------------------------------------
+      # 1. Get project
+      # --------------------------------------------------
       - name: Checkout project
         uses: actions/checkout@v4
 
+
+      # --------------------------------------------------
+      # 2. Python 3.11
+      # --------------------------------------------------
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
+
+      # --------------------------------------------------
+      # 3. Java 17
+      # --------------------------------------------------
       - name: Set up Java
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
 
+
+      # --------------------------------------------------
+      # 4. Linux dependencies
+      # --------------------------------------------------
       - name: Install system dependencies
         run: |
           sudo apt-get update
+
           sudo apt-get install -y \
             git \
             zip \
@@ -45,93 +61,82 @@ jobs:
             libffi-dev \
             libssl-dev
 
+
+      # --------------------------------------------------
+      # 5. Python build tools
+      # --------------------------------------------------
       - name: Install Buildozer
         run: |
           python -m pip install --upgrade pip setuptools wheel
-          python -m pip install "Cython==0.29.36"
-          python -m pip install buildozer
 
-      - name: Clean old build
-        run: |
-          rm -rf .buildozer
-          rm -rf bin
+          python -m pip install \
+            "Cython==0.29.36" \
+            "buildozer"
 
-      - name: Fix charset-normalizer
+
+      # --------------------------------------------------
+      # 6. Fix charset-normalizer
+      # --------------------------------------------------
+      - name: Fix Python Android dependencies
         run: |
           if [ -f requirements.txt ]; then
             sed -i '/charset[-_]normalizer/d' requirements.txt
             echo "charset-normalizer==2.1.1" >> requirements.txt
           fi
 
-      - name: Install Android Command Line Tools
+          echo "requirements.txt:"
+          cat requirements.txt 2>/dev/null || true
+
+
+      # --------------------------------------------------
+      # 7. Clean previous Buildozer files
+      # --------------------------------------------------
+      - name: Clean Buildozer
         run: |
-          SDK="$HOME/.buildozer/android/platform/android-sdk"
+          rm -rf .buildozer
+          rm -rf bin
 
-          mkdir -p "$SDK/cmdline-tools"
 
-          cd /tmp
-
-          wget -q \
-            "https://dl.google.com/android/repository/commandlinetools-linux-13114758_latest.zip" \
-            -O commandlinetools.zip
-
-          rm -rf cmdline-tools
-          mkdir cmdline-tools
-
-          unzip -q commandlinetools.zip -d cmdline-tools
-
-          rm -rf "$SDK/cmdline-tools/latest"
-
-          mv cmdline-tools/cmdline-tools \
-            "$SDK/cmdline-tools/latest"
-
-          chmod +x "$SDK/cmdline-tools/latest/bin/"*
-
-      - name: Install Android SDK
+      # --------------------------------------------------
+      # 8. Configure Buildozer Android settings
+      # --------------------------------------------------
+      - name: Show Buildozer configuration
         run: |
-          SDK="$HOME/.buildozer/android/platform/android-sdk"
-          SDKMANAGER="$SDK/cmdline-tools/latest/bin/sdkmanager"
+          echo "Checking buildozer.spec..."
 
-          yes | "$SDKMANAGER" \
-            --sdk_root="$SDK" \
-            --licenses || true
+          grep -E \
+            "^(requirements|android.api|android.minapi|android.archs)" \
+            buildozer.spec || true
 
-          "$SDKMANAGER" \
-            --sdk_root="$SDK" \
-            "platform-tools" \
-            "platforms;android-33" \
-            "build-tools;37.0.0"
 
-      - name: Create Buildozer SDK compatibility path
-        run: |
-          SDK="$HOME/.buildozer/android/platform/android-sdk"
-
-          mkdir -p "$SDK/tools/bin"
-
-          ln -sf \
-            "$SDK/cmdline-tools/latest/bin/sdkmanager" \
-            "$SDK/tools/bin/sdkmanager"
-
-          ln -sf \
-            "$SDK/cmdline-tools/latest/bin/avdmanager" \
-            "$SDK/tools/bin/avdmanager"
-
-          echo "Checking AIDL:"
-          "$SDK/build-tools/37.0.0/aidl" --version
-
+      # --------------------------------------------------
+      # 9. Build APK
+      # --------------------------------------------------
       - name: Build APK
         run: |
-          export ANDROIDSDK="$HOME/.buildozer/android/platform/android-sdk"
-          export ANDROID_HOME="$ANDROIDSDK"
-          export ANDROID_SDK_ROOT="$ANDROIDSDK"
-
           buildozer -v android debug
 
-      - name: Show APK
-        run: |
-          echo "APK files:"
-          find bin -type f -name "*.apk" -print
 
+      # --------------------------------------------------
+      # 10. Find APK
+      # --------------------------------------------------
+      - name: Find APK
+        run: |
+          echo "================================="
+          echo "APK FILES"
+          echo "================================="
+
+          find bin \
+            -type f \
+            -name "*.apk" \
+            -print
+
+          echo "================================="
+
+
+      # --------------------------------------------------
+      # 11. Upload APK
+      # --------------------------------------------------
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
