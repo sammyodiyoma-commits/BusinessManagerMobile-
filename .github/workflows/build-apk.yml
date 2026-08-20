@@ -27,6 +27,7 @@ jobs:
             git \
             zip \
             unzip \
+            wget \
             openjdk-17-jdk \
             autoconf \
             automake \
@@ -40,24 +41,59 @@ jobs:
           python -m pip install --upgrade pip setuptools wheel
           pip install "cython<3" buildozer
 
-      - name: Prepare Android SDK for Buildozer
+      - name: Install Android Command Line Tools
         run: |
           SDK="$HOME/.buildozer/android/platform/android-sdk"
 
           mkdir -p "$SDK"
 
-          echo "SDK location:"
-          echo "$SDK"
+          cd /tmp
 
-          if command -v sdkmanager >/dev/null 2>&1; then
-            echo "System sdkmanager found"
-            sdkmanager --sdk_root="$SDK" \
-              "platform-tools" \
-              "build-tools;35.0.0"
-          else
-            echo "System sdkmanager not found"
-            echo "Buildozer will download the Android SDK components"
-          fi
+          wget -q https://dl.google.com/android/repository/commandlinetools-linux-13114758_latest.zip
+
+          rm -rf cmdline-tools
+          mkdir cmdline-tools
+
+          unzip -q commandlinetools-linux-13114758_latest.zip \
+            -d cmdline-tools
+
+          mkdir -p "$SDK/cmdline-tools"
+
+          rm -rf "$SDK/cmdline-tools/latest"
+
+          mv cmdline-tools/cmdline-tools \
+            "$SDK/cmdline-tools/latest"
+
+          echo "Android command-line tools installed."
+
+          ls -la "$SDK/cmdline-tools/latest/bin"
+
+      - name: Install Android SDK packages
+        run: |
+          SDK="$HOME/.buildozer/android/platform/android-sdk"
+          SDKMANAGER="$SDK/cmdline-tools/latest/bin/sdkmanager"
+
+          yes | "$SDKMANAGER" --sdk_root="$SDK" --licenses || true
+
+          "$SDKMANAGER" --sdk_root="$SDK" \
+            "platform-tools" \
+            "build-tools;35.0.0"
+
+      - name: Create Buildozer sdkmanager compatibility path
+        run: |
+          SDK="$HOME/.buildozer/android/platform/android-sdk"
+
+          mkdir -p "$SDK/tools/bin"
+
+          ln -sf \
+            "$SDK/cmdline-tools/latest/bin/sdkmanager" \
+            "$SDK/tools/bin/sdkmanager"
+
+          echo "Buildozer sdkmanager:"
+          ls -l "$SDK/tools/bin/sdkmanager"
+
+          echo "AIDL:"
+          find "$SDK/build-tools" -name aidl -type f
 
       - name: Build APK
         run: |
