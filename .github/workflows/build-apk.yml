@@ -48,29 +48,36 @@ jobs:
           SDKMANAGER=$(find "$ANDROID_HOME" -name sdkmanager -type f 2>/dev/null | head -n 1)
 
           if [ -z "$SDKMANAGER" ]; then
-            echo "ERROR: sdkmanager not found"
+            echo "ERROR: sdkmanager was not found"
             exit 1
           fi
 
           echo "Using sdkmanager: $SDKMANAGER"
 
           yes | "$SDKMANAGER" --licenses || true
+
           "$SDKMANAGER" "platform-tools" "build-tools;37.0.0"
 
           echo "ANDROID_HOME=$ANDROID_HOME" >> "$GITHUB_ENV"
           echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> "$GITHUB_ENV"
 
-      - name: Configure Buildozer
+      - name: Connect Buildozer to Android SDK
         run: |
-          mkdir -p ~/.buildozer
-          rm -rf ~/.buildozer/android/platform/android-sdk
-          ln -s "$ANDROID_HOME" ~/.buildozer/android/platform/android-sdk
+          mkdir -p "$HOME/.buildozer/android/platform"
 
-          echo "Buildozer SDK:"
-          ls -la ~/.buildozer/android/platform/android-sdk
+          rm -rf "$HOME/.buildozer/android/platform/android-sdk"
 
-          echo "Build tools:"
+          ln -s "$ANDROID_HOME" \
+            "$HOME/.buildozer/android/platform/android-sdk"
+
+          echo "Buildozer Android SDK:"
+          ls -la "$HOME/.buildozer/android/platform/android-sdk"
+
+          echo "Installed Build Tools:"
           ls -la "$ANDROID_HOME/build-tools"
+
+          echo "Checking AIDL:"
+          find "$ANDROID_HOME/build-tools" -name aidl -type f
 
       - name: Build APK
         run: |
