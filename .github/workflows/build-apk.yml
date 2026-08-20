@@ -11,6 +11,7 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
+
       - name: Checkout project
         uses: actions/checkout@v4
 
@@ -28,6 +29,7 @@ jobs:
       - name: Install system dependencies
         run: |
           sudo apt-get update
+
           sudo apt-get install -y \
             git \
             zip \
@@ -48,23 +50,83 @@ jobs:
           python -m pip install buildozer
           python -m pip install "Cython==0.29.36"
 
-      - name: Accept Android licenses
-        run: |
-          mkdir -p "$HOME/.buildozer/android/platform/android-sdk/licenses"
-
-          echo "8933bad161af4178b1185d1a37fbf41ea5269c55" \
-            > "$HOME/.buildozer/android/platform/android-sdk/licenses/android-sdk-license"
-
-          echo "d56f5187479451eabf01fb78af6dfcb131a6481e" \
-            >> "$HOME/.buildozer/android/platform/android-sdk/licenses/android-sdk-license"
-
-          echo "24333f8a63b6825ea9c5514f83c2829b004d1fee" \
-            >> "$HOME/.buildozer/android/platform/android-sdk/licenses/android-sdk-license"
-
       - name: Clean old Buildozer files
         run: |
           rm -rf .buildozer
           rm -rf bin
+
+      - name: Prepare Android SDK for Buildozer
+        run: |
+          SDK="$HOME/.buildozer/android/platform/android-sdk"
+
+          mkdir -p "$SDK"
+
+          echo "Downloading Android command line tools..."
+
+          cd "$SDK"
+
+          wget -q \
+            https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip \
+            -O tools.zip
+
+          unzip -q tools.zip
+
+          rm tools.zip
+
+          mkdir -p "$SDK/cmdline-tools"
+
+          mv cmdline-tools "$SDK/cmdline-tools/latest"
+
+          mkdir -p "$SDK/tools/bin"
+
+          ln -sf \
+            "$SDK/cmdline-tools/latest/bin/sdkmanager" \
+            "$SDK/tools/bin/sdkmanager"
+
+          ln -sf \
+            "$SDK/cmdline-tools/latest/bin/avdmanager" \
+            "$SDK/tools/bin/avdmanager"
+
+          chmod +x "$SDK/tools/bin/sdkmanager"
+          chmod +x "$SDK/tools/bin/avdmanager"
+
+          echo "Checking sdkmanager..."
+
+          "$SDK/tools/bin/sdkmanager" --version
+
+      - name: Accept Android licenses
+        run: |
+          SDK="$HOME/.buildozer/android/platform/android-sdk"
+
+          yes | "$SDK/tools/bin/sdkmanager" \
+            --sdk_root="$SDK" \
+            --licenses || true
+
+      - name: Install Android SDK packages
+        run: |
+          SDK="$HOME/.buildozer/android/platform/android-sdk"
+
+          "$SDK/tools/bin/sdkmanager" \
+            --sdk_root="$SDK" \
+            "platform-tools" \
+            "platforms;android-33" \
+            "build-tools;35.0.0"
+
+      - name: Verify Android SDK
+        run: |
+          SDK="$HOME/.buildozer/android/platform/android-sdk"
+
+          echo "SDK:"
+          echo "$SDK"
+
+          echo "sdkmanager:"
+          "$SDK/tools/bin/sdkmanager" --version
+
+          echo "Build tools:"
+          ls -la "$SDK/build-tools"
+
+          echo "AIDL:"
+          ls -la "$SDK/build-tools/35.0.0/aidl"
 
       - name: Build APK
         run: |
