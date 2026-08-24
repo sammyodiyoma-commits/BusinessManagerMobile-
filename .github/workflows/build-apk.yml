@@ -1,7 +1,6 @@
-```yaml
-name: Build Android APK
+name: Build Business Manager APK
 
-"on":
+on:
   workflow_dispatch:
   push:
     branches:
@@ -12,19 +11,13 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      - name: Checkout project
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set up Python 3.11
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-
-      - name: Set up Java 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "17"
 
       - name: Install system dependencies
         run: |
@@ -33,7 +26,7 @@ jobs:
             git \
             zip \
             unzip \
-            wget \
+            openjdk-17-jdk \
             autoconf \
             automake \
             libtool \
@@ -41,53 +34,23 @@ jobs:
             libffi-dev \
             libssl-dev
 
+      - name: Set Java 17
+        run: |
+          echo "JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64" >> $GITHUB_ENV
+          echo "/usr/lib/jvm/java-17-openjdk-amd64/bin" >> $GITHUB_PATH
+          java -version
+
       - name: Install Buildozer
         run: |
           python -m pip install --upgrade pip
-          python -m pip install "cython<3"
-          python -m pip install buildozer
-
-      - name: Install Android SDK
-        run: |
-          mkdir -p "$HOME/android-sdk/cmdline-tools"
-
-          wget -q \
-            "https://dl.google.com/android/repository/commandlinetools-linux-13114758_latest.zip" \
-            -O /tmp/android-sdk.zip
-
-          unzip -q /tmp/android-sdk.zip -d /tmp/android-sdk
-
-          mv /tmp/android-sdk/cmdline-tools \
-            "$HOME/android-sdk/cmdline-tools/latest"
-
-          echo "ANDROID_HOME=$HOME/android-sdk" >> "$GITHUB_ENV"
-          echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> "$GITHUB_ENV"
-          echo "$HOME/android-sdk/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
-          echo "$HOME/android-sdk/platform-tools" >> "$GITHUB_PATH"
-
-      - name: Install Android packages
-        run: |
-          yes | sdkmanager --licenses || true
-
-          sdkmanager \
-            "platform-tools" \
-            "platforms;android-33" \
-            "build-tools;37.0.0"
-
-      - name: Verify AIDL
-        run: |
-          echo "Checking AIDL..."
-          ls -la "$ANDROID_HOME/build-tools/37.0.0/"
-          test -f "$ANDROID_HOME/build-tools/37.0.0/aidl"
-          echo "AIDL found successfully."
+          python -m pip install buildozer "cython<3"
 
       - name: Build APK
         run: |
-          buildozer android debug
+          yes | buildozer -v android debug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: BusinessManager-APK
+          name: Business-Manager-APK
           path: bin/*.apk
-```
