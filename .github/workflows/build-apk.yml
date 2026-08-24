@@ -11,13 +11,19 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      - name: Checkout
+      - name: Checkout project
         uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
 
       - name: Install system dependencies
         run: |
@@ -34,23 +40,38 @@ jobs:
             libffi-dev \
             libssl-dev
 
-      - name: Set Java 17
+      - name: Upgrade pip tools
         run: |
-          echo "JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64" >> $GITHUB_ENV
-          echo "/usr/lib/jvm/java-17-openjdk-amd64/bin" >> $GITHUB_PATH
-          java -version
+          python -m pip install --upgrade "pip<26" "setuptools<81" "wheel<1"
 
       - name: Install Buildozer
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install buildozer "cython<3"
+          python -m pip install "buildozer==1.5.0"
+          python -m pip install "cython==0.29.36"
+
+      - name: Check versions
+        run: |
+          python --version
+          pip --version
+          buildozer --version
+          cython --version
+          java -version
+
+      - name: Clean previous Buildozer files
+        run: |
+          rm -rf .buildozer
+          rm -rf bin
 
       - name: Build APK
+        env:
+          PIP_DISABLE_PIP_VERSION_CHECK: "1"
+          PIP_NO_CACHE_DIR: "1"
         run: |
-          yes | buildozer -v android debug
+          buildozer android debug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Business-Manager-APK
+          name: BusinessManager-APK
           path: bin/*.apk
+          if-no-files-found: error
