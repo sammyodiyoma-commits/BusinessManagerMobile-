@@ -11,27 +11,34 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
+
+      # 1. Get the project
       - name: Checkout project
         uses: actions/checkout@v4
 
+      # 2. Install Python 3.11
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.11"
 
+      # 3. Install Java 17
       - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
 
+      # 4. Install Linux dependencies
       - name: Install system dependencies
         run: |
           sudo apt-get update
+
           sudo apt-get install -y \
             git \
             zip \
             unzip \
+            wget \
             autoconf \
             automake \
             libtool \
@@ -39,7 +46,8 @@ jobs:
             libffi-dev \
             libssl-dev
 
-      - name: Install Python tools
+      # 5. Install Python build tools
+      - name: Install Python build tools
         run: |
           python -m pip install --upgrade "pip<26"
           python -m pip install "setuptools<81"
@@ -47,65 +55,103 @@ jobs:
           python -m pip install "cython==0.29.36"
           python -m pip install "buildozer==1.5.0"
 
-      - name: Install Android SDK tools
+      # 6. Check versions
+      - name: Check versions
         run: |
+          python --version
+          pip --version
+          buildozer --version
+          cython --version
+          java -version
+
+      # 7. Install Android SDK
+      - name: Install Android SDK
+        run: |
+
           SDK_ROOT="$HOME/.buildozer/android/platform/android-sdk"
+
+          echo "Android SDK:"
+          echo "$SDK_ROOT"
 
           mkdir -p "$SDK_ROOT/cmdline-tools"
 
-          wget -q https://dl.google.com/android/repository/commandlinetools-linux-13114758_latest.zip -O /tmp/cmdline-tools.zip
+          wget -q \
+            https://dl.google.com/android/repository/commandlinetools-linux-13114758_latest.zip \
+            -O /tmp/cmdline-tools.zip
 
-          unzip -q /tmp/cmdline-tools.zip -d /tmp/android-tools
+          unzip -q \
+            /tmp/cmdline-tools.zip \
+            -d /tmp/android-tools
 
           mkdir -p "$SDK_ROOT/cmdline-tools/latest"
 
-          mv /tmp/android-tools/cmdline-tools/* "$SDK_ROOT/cmdline-tools/latest/"
+          mv \
+            /tmp/android-tools/cmdline-tools/* \
+            "$SDK_ROOT/cmdline-tools/latest/"
 
           export ANDROIDSDK="$SDK_ROOT"
           export ANDROID_HOME="$SDK_ROOT"
           export ANDROID_SDK_ROOT="$SDK_ROOT"
-          export PATH="$SDK_ROOT/cmdline-tools/latest/bin:$SDK_ROOT/platform-tools:$SDK_ROOT/build-tools/35.0.0:$PATH"
 
           echo "ANDROIDSDK=$SDK_ROOT" >> "$GITHUB_ENV"
           echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
           echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
+
           echo "$SDK_ROOT/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
           echo "$SDK_ROOT/platform-tools" >> "$GITHUB_PATH"
-          echo "$SDK_ROOT/build-tools/35.0.0" >> "$GITHUB_PATH"
+          echo "$SDK_ROOT/build-tools/34.0.0" >> "$GITHUB_PATH"
+
+          echo "Accepting Android licenses..."
 
           yes | sdkmanager --licenses >/dev/null || true
+
+          echo "Installing Android packages..."
 
           sdkmanager \
             "platform-tools" \
             "platforms;android-33" \
-            "build-tools;35.0.0"
+            "build-tools;34.0.0"
 
+      # 8. Check AIDL
       - name: Verify AIDL
         run: |
-          echo "Checking Android SDK..."
-          echo "ANDROIDSDK=$ANDROIDSDK"
 
-          find "$ANDROIDSDK" -name aidl -type f -print
+          AIDL="$ANDROIDSDK/build-tools/34.0.0/aidl"
 
-          AIDL=$(find "$ANDROIDSDK" -name aidl -type f | head -n 1)
+          echo "Checking AIDL..."
+          echo "AIDL path:"
+          echo "$AIDL"
 
-          if [ -z "$AIDL" ]; then
+          if [ ! -f "$AIDL" ]; then
             echo "ERROR: AIDL was not installed."
             exit 1
           fi
 
-          echo "AIDL FOUND:"
+          echo "AIDL FOUND!"
+
           "$AIDL" --version
 
+      # 9. Clean old Buildozer files
       - name: Clean Buildozer
         run: |
+
+          echo "Removing old Buildozer files..."
+
           rm -rf .buildozer
           rm -rf bin
 
+      # 10. Build APK
       - name: Build APK
+        env:
+          PIP_DISABLE_PIP_VERSION_CHECK: "1"
+          PIP_NO_CACHE_DIR: "1"
         run: |
+
+          echo "Starting APK build..."
+
           buildozer android debug
 
+      # 11. Upload APK
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
